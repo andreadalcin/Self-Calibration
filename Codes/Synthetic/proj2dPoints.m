@@ -23,9 +23,9 @@ end
 % Move 3D objects and plot
 for i = 1:num_objects
     R_i = Rz_k(:,:,i) * Ry_k(:,:,i) * Rz_k(:,:,i);
-    T_i = t_scale * rand(3,1);
+    t_i = t_scale * rand(3,1);
 
-    XYZ_k(:,:,i) = R_i * XYZ_k(:,:,i) + T_i;
+    XYZ_k(:,:,i) = R_i * XYZ_k(:,:,i) + t_i;
 end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
@@ -59,15 +59,15 @@ Y_k = XYZ_k(2,:,:);
 Z_k = XYZ_k(3,:,:);
 
 colorstring = 'bgry';
-figure
+% figure
 for i = 1:k
-    plot3(X_k(:,:,i), Y_k(:,:,i), Z_k(:,:,i), '.','markersize', 1, 'Color', colorstring(i));
-    hold on
+    % plot3(X_k(:,:,i), Y_k(:,:,i), Z_k(:,:,i), '.','markersize', 1, 'Color', colorstring(i));
+    % hold on
 end
 
-pose = rigid3d(R,t);
-cam = plotCamera('AbsolutePose', pose, 'Opacity', 0)
+% pose = rigid3d(R,t);
+% plotCamera('AbsolutePose', pose, 'Opacity', 0);
 
-hold off
-axis equal vis3d
+% hold off
+% axis equal vis3d
 end
