@@ -1,4 +1,4 @@
-function E = costFunctionKruppaSimplified2(F, X)
+function E = costFunctionKruppaSimplified(F, X)
 %% COSTFUNCTIONKRUPPASIMPLIFIED computes Simplified Kruppa Cost function to find the Optimal Intrinsic Parameters
 
 %   Input

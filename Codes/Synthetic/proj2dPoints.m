@@ -35,7 +35,7 @@ P = K * [1, 0, 0, 0; 0, 1, 0, 0; 0, 0, 1, 0] * [R, t'; 0, 0, 0, 1];
 
 UV_k = zeros(2,num_points,num_objects);
 
-figure
+% figure
 for i = 1:num_objects
     XYZ = XYZ_k(:,:,i);
     XYZ = [XYZ; ones(1,size(XYZ,2))];
@@ -44,10 +44,10 @@ for i = 1:num_objects
     UV = UV ./ UV(3,:);
     UV_k(:,:,i) = UV(1:2,:);
     
-    plot(UV(1,:), UV(2,:), '.')
-    hold on
+    % plot(UV(1,:), UV(2,:), '.')
+    % hold on
 end
-axis equal
+% axis equal
 end
 
 
