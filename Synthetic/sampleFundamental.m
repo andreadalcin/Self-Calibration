@@ -28,9 +28,9 @@ end
 % Compute F1 and F2 from the two images
 m1 = uv_kh(:,:,1,1);
 m2 = uv_kh(:,:,1,2);
-F0 = fund_lin(m2,m1,[]);
-F1 = fund_nonlin(F0,m2,m1);
-% [F1, ~] = estimateFundamentalMatrix(m1', m2', 'Method', 'MSAC', 'NumTrials', 2000, 'DistanceThreshold', 1e-4);
+% F0 = fund_lin(m2,m1,[]);
+% F1 = fund_nonlin(F0,m2,m1);
+[F1, ~] = estimateFundamentalMatrix(m1', m2', 'Method', 'MSAC', 'NumTrials', 2000, 'DistanceThreshold', 1e-4);
 
 % disp("F_1 check: x'F_1x = 0")
 % res = [uv_kh(:,:,1,2); ones(1,num_points)]' * F1 * [uv_kh(:,:,1,1); ones(1,num_points)];
@@ -38,9 +38,9 @@ F1 = fund_nonlin(F0,m2,m1);
 
 m1 = uv_kh(:,:,2,1);
 m2 = uv_kh(:,:,2,2);
-F0 = fund_lin(m2,m1,[]);
-F2 = fund_nonlin(F0,m2,m1);
-% [F2, ~] = estimateFundamentalMatrix(m1', m2', 'Method', 'MSAC', 'NumTrials', 2000, 'DistanceThreshold', 1e-4);
+% F0 = fund_lin(m2,m1,[]);
+% F2 = fund_nonlin(F0,m2,m1);
+[F2, ~] = estimateFundamentalMatrix(m1', m2', 'Method', 'MSAC', 'NumTrials', 2000, 'DistanceThreshold', 1e-4);
 
 % disp("F_2 check: x'F_2x = 0")
 % res = [uv_kh(:,:,2,2); ones(1,num_points)]' * F2 * [uv_kh(:,:,2,1); ones(1,num_points)];
