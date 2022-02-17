@@ -19,12 +19,12 @@ num_bins = 100;
 u0 = width / 2;
 v0 = height / 2;
 
-outlier_ratio = 0.7;
+outlier_ratio = 0;
 
 
 %% Step 1 - Sample fundamental matrices
 num_cams = 10;
-sigma = 0;
+sigma = 1e1;
 outlier_indices = [];
 
 index = 1;
@@ -40,17 +40,17 @@ for i = 1:num_cams-1
             outlier_indices = [outlier_indices; index; index + 1];
         end
 
-        P1 = K_curr * [eye(3,3), zeros(3,1)];
-        R = rotYPR(rand(1) * 45, rand(1) * 45, rand(1) * 45);
-        t = 1e3 * rand(3,1);
-        P2 = K_curr * [R, t];
-        Fs(:,:,index) = fund(P1, P2);
+%         P1 = K_curr * [eye(3,3), zeros(3,1)];
+%         R = rotYPR(rand(1) * 45, rand(1) * 45, rand(1) * 45);
+%         t = 1e3 * rand(3,1);
+%         P2 = K_curr * [R, t];
+        Fs(:,:,index) = sampleFundamental(K,sigma);
 
-        P1 = K_curr * [eye(3,3), zeros(3,1)];
-        R = rotYPR(rand(1) * 45, rand(1) * 45, rand(1) * 45);
-        t = 1e3 * rand(3,1);
-        P2 = K_curr * [R, t];
-        Fs(:,:,index+1) = fund(P1, P2);
+%         P1 = K_curr * [eye(3,3), zeros(3,1)];
+%         R = rotYPR(rand(1) * 45, rand(1) * 45, rand(1) * 45);
+%         t = 1e3 * rand(3,1);
+%         P2 = K_curr * [R, t];
+        Fs(:,:,index+1) = sampleFundamental(K,sigma);
 
         index = index + 2;
     end

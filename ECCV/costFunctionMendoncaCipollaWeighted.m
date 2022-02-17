@@ -1,4 +1,4 @@
-function E = costFunctionMendoncaCipolla(F, X, Method)
+function E = costFunctionMendoncaCipollaWeighted(F, X, weights, Method)
 %% COSTFUNCTIONMENDONCACIPOLLA computes Mendonca & Cipolla Cost function to find the Optimal Intrinsic Parameters
 
 %   Input
@@ -54,7 +54,14 @@ for i = 1:size(F,3)
     E = [E E1];
 end
 
-[~,~,~,outliers] = robustcov(E);
-E(outliers) = E(outliers) * 0;
+E = E .* weights';
+
+[~,~,~, outliers] = robustcov(E);
+if size(outliers,1) == size(E,2)
+    E(outliers) = E(outliers) * 0;
+else
+    disp(size(E))
+    disp(size(outliers))
+end
 
 end

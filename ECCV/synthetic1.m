@@ -16,12 +16,12 @@ num_bins = 50;
 translation_scale = 1e3;
 rotation_scale = 45;
 
-num_cams = 5;
+num_cams = 10;
 sigma = 0;
 
 min_outlier_f = 1e1;
 max_outlier_f = 1e5;
-outlier_ratio = 0.6;
+outlier_ratio = 0.5;
 
 
 %% Step 1 - Sample fundamental matrices
@@ -76,145 +76,114 @@ for i = 1:num_cams-1
     end
 end
 
+%% Step 1.1 - Load a real dataset
 
-%% Step 2 - Estimate focal length from fundamental matrices
+load("ECCV/Data1/F_fountain.mat", 'Fs')
+num_cameras = size(Fs,3);
+width = 1392;
+height = 512;
+Fs_f = [];
+index = 1;
+for i = 1:num_cameras-1
+    for j = i+1:num_cameras
+        if Fs(:,:,i,j,1) ~= zeros(3,3)
+            Fs_f(:,:,index) = Fs(:,:,i,j,1);
+            index = index + 1;
+            % Fs_f(:,:,index) = Fs(:,:,i,j,2);
+            % index = index + 1;
+        end
+    end
+end
+Fs_sb = Fs_f;
+Fs_mb = Fs_f;
+outliers_sb = [];
+outliers_mb = [];
 
-% Single body
-f_sb = [];
-for i = 1:size(Fs_sb,3)
-    f0 = getInitialEstimateOfFocalLength(Fs_sb(:,:,i), width, height);
-    f_sb = [f_sb; f0];
+
+%% Step 2 - Evaluate
+
+pct0 = 20;
+
+disp("Single body")
+evaluate(Fs_sb, outliers_sb, K, width, height, num_bins, pct0);
+
+
+
+function [d_f0, d_f, d_uv] = evaluate(Fs, outliers, K, width, height, num_bins, pct0)
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+f = [];
+for i = 1:size(Fs,3)
+    f0 = getInitialEstimateOfFocalLength(Fs(:,:,i), width, height);
+    f = [f; f0];
 end
 
-h = histogram(f_sb, num_bins);
-[maxcount, whichbin] = max(h.Values);
-f0_sb = (h.BinEdges(whichbin) + h.BinEdges(whichbin+1)) / 2;
-% [~,f0_sb,~,~] = robustcov(f_sb);
-K0_sb = [f0_sb, 0, width/2; 0, f0_sb, height/2; 0, 0, 1];
-disp('f0 - Single body')
-disp(f0_sb)
+figure;
+h = histogram(f, num_bins);
 
-% Multi-body
-f_mb = [];
-for i = 1:size(Fs_mb,3)
-    f0 = getInitialEstimateOfFocalLength(Fs_mb(:,:,i), width, height);
-    f_mb = [f_mb; f0];
-end
+% Filter focal lengths not in the peak bin
+[~, whichbin] = max(h.Values);
+th_low = h.BinEdges(whichbin);
+th_high = h.BinEdges(whichbin + 1);
+f(or(f < th_low, f > th_high)) = [];
 
-h = histogram(f_mb, num_bins);
-[maxcount, whichbin] = max(h.Values);
-f0_mb = (h.BinEdges(whichbin) + h.BinEdges(whichbin+1)) / 2;
-% [~,f0_mb,~,~] = robustcov(f_mb);
-K0_sb = [f0_mb, 0, width/2; 0, f0_mb, height/2; 0, 0, 1];
-disp('f0 - Multi body')
-disp(f0_mb)
+f0 = median(f);
+fprintf("f0: %d\n", f0)
+K0 = [f0, 0, width / 2; 0, f0, height / 2; 0, 0, 1];
 
-
-%% Step 4 - Remove outliers
-residual_sb = [];
-for i = 1:size(Fs_sb,3)
-    f0 = getInitialEstimateFromF0(Fs_sb(:,:,i), f0_sb, width, height);
-    if isempty(f0)
-        residual_sb = [residual_sb; 1e5];
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+residual = [];
+for i = 1:size(Fs,3)
+    f = getInitialEstimateFromF0(Fs(:,:,i), f0, width, height);
+    if isempty(f)
+        residual = [residual; 1e5];
     else
-        residual_sb = [residual_sb; abs(f0_sb - f0)];
+        residual = [residual; abs(f0 - f)];
     end
 end
 
-Fo_sb = [];
-pct = 5;
-while (size(Fo_sb,3) <= 6)
-    th_low = prctile(residual_sb,pct);
-    Fo_sb = Fs_sb(:,:,residual_sb <= th_low);
+Fo = [];
+pct = pct0;
+while (size(Fo,3) <= 6)
+    th_low = prctile(residual,pct);
+    Fo = Fs(:,:,residual <= th_low);
     pct = pct + 5;
 end
 
 figure;
 hold on
-plot(residual_sb, 'r.');
+plot(residual, 'r.');
 yline(th_low);
 hold off
 
-disp("SB - Outlier removal percentage:")
-outliers = residual_sb > th_low;
-sum(outliers(outliers_sb)) / size(outliers_sb,1)
+disp("Outlier removal percentage:")
+o = residual > th_low;
+sum(o(outliers)) / size(outliers,1)
 
 
-residual_mb = [];
-for i = 1:size(Fs_mb,3)
-    f0 = getInitialEstimateFromF0(Fs_mb(:,:,i), f0_mb, width, height);
-    if isempty(f0)
-        residual_mb = [residual_mb; 1e9];
-    else
-        residual_mb = [residual_mb; abs(f0_mb - f0)];
-    end
-end
-
-Fo_mb = [];
-pct = 5;
-while (size(Fo_mb,3) <= 6)
-    th_low = prctile(residual_mb,pct);
-    Fo_mb = Fs_mb(:,:,residual_mb <= th_low);
-    pct = pct + 5;
-end
-
-figure;
-hold on
-plot(residual_mb, 'b.');
-yline(th_low);
-hold off
-
-disp("MB - Outlier removal percentage:")
-outliers = residual_mb > th_low;
-sum(outliers(outliers_mb)) / size(outliers_mb,1)
-
-
-%% Step 3 - Self-calibration - Single body
-
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 Options = optimoptions('lsqnonlin','Display','off','Algorithm','levenberg-marquardt','TolFun', 1e-20,'TolX',1e-20,'MaxFunctionEvaluations',1e6);
 
-K0 = real([f0_sb, 0, width / 2; 0, f0_sb, height / 2; 0, 0, 1]);
+K0 = real([f0, 0, width / 2; 0, f0, height / 2; 0, 0, 1]);
 X0 = [K0(1,:) K0(2,2:3)];
-K_sb = lsqnonlin(@(X) costFunctionMendoncaCipolla(Fo_sb, X, '1'), X0, [], [], Options);
-K_sb = [K_sb(1) K_sb(2) K_sb(3); 0 K_sb(4) K_sb(5); 0 0 1];
+K_SK = lsqnonlin(@(X) costFunctionMendoncaCipolla(Fo, X, '1'), X0, [], [], Options);
+K_SK = [K_SK(1) K_SK(2) K_SK(3); 0 K_SK(4) K_SK(5); 0 0 1];
 
-disp('Intrinsics - Single body')
-disp(K_sb)
+disp('Intrinsics - Mendonca&Cipolla')
+disp(K_SK)
 
-K0 = real([f0_mb, 0, width / 2; 0, f0_mb, height / 2; 0, 0, 1]);
-X0 = [K0(1,:) K0(2,2:3)];
-K_mb = lsqnonlin(@(X) costFunctionMendoncaCipolla(Fo_mb, X, '1'), X0, [], [], Options);
-K_mb = [K_mb(1) K_mb(2) K_mb(3); 0 K_mb(4) K_mb(5); 0 0 1];
-disp('Intrinsics - Multi body')
-disp(K_mb)
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-
-%% Step 4 - Metrics
-
-disp("Number of cameras")
-disp(num_cams)
-
-% Single body
-d_f0 = (abs(K(1,1) - f0_sb) + abs(K(2,2) - f0_sb)) / 2;
-d_f = (abs(K(1,1) - K_sb(1,1)) + abs(K(2,2) - K_sb(2,2))) / 2;
-d_uv = norm([K(1,3) - K_sb(1,3), K(2,3) - K_sb(2,3)]);
-disp("Single body - Number of Fundamental matrices")
-disp(size(Fs_sb,3))
-disp("Single body - Initial focal length - error")
+d_f0 = (abs(K(1,1) - f0) + abs(K(2,2) - f0)) / 2;
+d_f = (abs(K(1,1) - K_SK(1,1)) + abs(K(2,2) - K_SK(2,2))) / 2;
+d_uv = norm([K(1,3) - K_SK(1,3), K(2,3) - K_SK(2,3)]);
+disp("Number of Fundamental matrices")
+disp(size(Fs,3))
+disp("Initial focal length - error")
 disp(d_f0)
-disp("Single body - Focal length - error")
+disp("Focal length - error")
 disp(d_f)
-disp("Single body - Principal point - error")
+disp("Principal point - error")
 disp(d_uv)
 
-d_f0 = (abs(K(1,1) - f0_mb) + abs(K(2,2) - f0_mb)) / 2;
-d_f = (abs(K(1,1) - K_mb(1,1)) + abs(K(2,2) - K_mb(2,2))) / 2;
-d_uv = norm([K(1,3) - K_mb(1,3), K(2,3) - K_mb(2,3)]);
-disp("Multi body - Number of Fundamental matrices")
-disp(size(Fs_mb,3))
-disp("Multi body - Initial focal length - error")
-disp(d_f0)
-disp("Multi body - Focal length - error")
-disp(d_f)
-disp("Multi body - Principal point - error")
-disp(d_uv)
+end

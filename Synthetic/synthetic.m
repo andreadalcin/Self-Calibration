@@ -49,7 +49,7 @@ focal_lengths = [];
 
 for i = 1:size(Fs,3)
     F = Fs(:,:,i);
-    focal_lengths = [focal_lengths; getInitialEstimateOfFocalLength(F, width, height, opening_angles, false)];
+    focal_lengths = [focal_lengths; getInitialEstimateOfFocalLength(F, width, height)];
 end
 
 h = histogram(focal_lengths, num_bins);
@@ -68,7 +68,7 @@ X0 = [K0(1,:) K0(2,2:3)];
 Options = optimoptions('lsqnonlin','Display','off','Algorithm','levenberg-marquardt','TolFun', 1e-20,'TolX',1e-20,'MaxFunctionEvaluations',1e6);
 
 % Compute Intrinsics by Optimization
-K_SK = lsqnonlin(@(X) costFunctionMendoncaCipolla(Fs, X, '1'), X0, [], [], Options);
+K_SK = lsqnonlin(@(X) costFunctionKruppaClassical(Fs, X), X0, [], [], Options);
 
 % Intrinsics in Matrix Form
 K_SK = [K_SK(1) K_SK(2) K_SK(3); 0 K_SK(4) K_SK(5); 0 0 1];
