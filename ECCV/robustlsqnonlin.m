@@ -1,4 +1,4 @@
-function [thisEstimate] = robustlsqnonlin(Fs, X0, Options)
+function [thisEstimate] = robustlsqnonlin(Fs, ds, X0, Options)
 
 weightMethod = 'cauchy';
 convergenceThreshold = 1e-6;
@@ -10,17 +10,17 @@ hasConverged     = false;
 previousEstimate = inf(size(X0));
 weights          = ones(size(Fs,3),1);
 iterationCounter = 1;
-while ~hasConverged && iterationCounter < 1e6
+while ~hasConverged && iterationCounter < 1e2
     %%% weighted LSQ
-    weightedFun = @(X) costFunctionMendoncaCipollaWeighted(Fs, X, weights, '3');
-    
-    thisEstimate = lsqnonlin(weightedFun, thisEstimate, [], [], Options)
+    weightedFun = @(X) costFunctionMendoncaCipollaWeighted(Fs, ds, X, weights, '2');
+
+    thisEstimate = lsqnonlin(weightedFun, X0, [], [], Options)
 
     % thisEstimate = varargout{1};
     hasConverged = norm(thisEstimate - previousEstimate)^2 < convergenceThreshold;
     
     %%% update weights
-    residuals = costFunctionMendoncaCipolla(Fs,thisEstimate,'3');
+    residuals = costFunctionMendoncaCipolla(Fs, ds, thisEstimate, '2');
     residuals = residuals(:);
     
     residualLeverages = leverage(residuals);
@@ -28,7 +28,7 @@ while ~hasConverged && iterationCounter < 1e6
     
     r = residuals ./ (tuningConstant * robustVar * sqrt(1 - residualLeverages));
     
-    weights = weightFunction(r);
+    % weights = weightFunction(r);
     previousEstimate = thisEstimate;
     iterationCounter = iterationCounter + 1;
 end

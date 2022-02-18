@@ -80,8 +80,8 @@ end
 
 load("ECCV/Data1/F_fountain.mat", 'Fs')
 num_cameras = size(Fs,3);
-width = 1392;
-height = 512;
+width = 3072;
+height = 2048;
 Fs_f = [];
 index = 1;
 for i = 1:num_cameras-1
@@ -162,7 +162,7 @@ sum(o(outliers)) / size(outliers,1)
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-Options = optimoptions('lsqnonlin','Display','off','Algorithm','levenberg-marquardt','TolFun', 1e-20,'TolX',1e-20,'MaxFunctionEvaluations',1e6);
+Options = optimoptions('lsqnonlin','Display','','Algorithm','levenberg-marquardt','TolFun', 1e-20,'TolX',1e-20,'MaxFunctionEvaluations',1e6);
 
 K0 = real([f0, 0, width / 2; 0, f0, height / 2; 0, 0, 1]);
 X0 = [K0(1,:) K0(2,2:3)];

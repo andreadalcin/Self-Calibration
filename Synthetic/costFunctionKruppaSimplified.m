@@ -11,7 +11,7 @@ function E = costFunctionKruppaSimplified(F, X)
 %% Function starts here
 
 % Transform Intrinsics to Matrix Form
-K = [X(1) X(2) X(3); 0 X(4) X(5); 0 0 1];
+K = [X(1) 0 X(2); 0 X(3) X(4); 0 0 1]
 
 % Compute the Conic W^-1 (Image of the Absolute Conic)
 W_inv = K*K';

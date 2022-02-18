@@ -24,7 +24,7 @@ outlier_ratio = 0;
 
 %% Step 1 - Sample fundamental matrices
 num_cams = 10;
-sigma = 1e1;
+sigma = 1e2;
 outlier_indices = [];
 
 index = 1;
@@ -40,16 +40,7 @@ for i = 1:num_cams-1
             outlier_indices = [outlier_indices; index; index + 1];
         end
 
-%         P1 = K_curr * [eye(3,3), zeros(3,1)];
-%         R = rotYPR(rand(1) * 45, rand(1) * 45, rand(1) * 45);
-%         t = 1e3 * rand(3,1);
-%         P2 = K_curr * [R, t];
         Fs(:,:,index) = sampleFundamental(K,sigma);
-
-%         P1 = K_curr * [eye(3,3), zeros(3,1)];
-%         R = rotYPR(rand(1) * 45, rand(1) * 45, rand(1) * 45);
-%         t = 1e3 * rand(3,1);
-%         P2 = K_curr * [R, t];
         Fs(:,:,index+1) = sampleFundamental(K,sigma);
 
         index = index + 2;
@@ -127,7 +118,7 @@ X0 = [K0(1,:) K0(2,2:3)];
 Options = optimoptions('lsqnonlin','Display','off','Algorithm','levenberg-marquardt','TolFun', 1e-20,'TolX',1e-20,'MaxFunctionEvaluations',1e6);
 
 % Compute Intrinsics by Optimization
-K_SK = lsqnonlin(@(X) costFunctionMendoncaCipolla(Fs_no_outliers, X, '1'), X0, [], [], Options);
+K_SK = lsqnonlin(@(X) costFunctionMendoncaCipolla(Fs_no_outliers, X, '2'), X0, [], [], Options);
 
 % Intrinsics in Matrix Form
 K_SK = [K_SK(1) K_SK(2) K_SK(3); 0 K_SK(4) K_SK(5); 0 0 1];
