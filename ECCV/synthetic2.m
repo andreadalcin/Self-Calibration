@@ -7,7 +7,7 @@ addpath('ECCV/')
 
 
 %%
-load("ECCV/Data/Seq009_Clip01_Tracks.mat")
+load("ECCV/Data/Seq005_Clip02_Tracks.mat")
 
 num_objects = max(unique(Data.GtLabel));
 num_cameras = size(Data.ySparse,3);
@@ -86,7 +86,9 @@ priors = priors ./ sum(priors);
 
 %%
 load('Dataset/Fs.mat')
-num_cameras = min(5, size(Fs,3));
+num_cameras = size(Fs,3);
+
+% num_cameras = min(3, num_cameras);
 width = 4272;
 height = 2848;
 K = [];
@@ -96,7 +98,7 @@ p = 0.5;
 Fo = [];
 priors = [];
 
-for i = 1:num_cameras
+for i = 1:num_cameras-1
     for j = i+1:num_cameras
         if rand > p
             o1 = 1;
@@ -106,8 +108,8 @@ for i = 1:num_cameras
         else
             o1 = 2;
             o2 = 1;
-            matches2 = pointMatchesInliers2;
-            matches1 = pointMatchesInliers1;
+            matches1 = pointMatchesInliers2;
+            matches2 = pointMatchesInliers1;
         end
 
         Fo(:,:,size(Fo,3)+1) = Fs(:,:,i,j,o1) / norm(Fs(:,:,i,j,o1));
@@ -119,14 +121,33 @@ for i = 1:num_cameras
     end
 end
 Fo(:,:,1) = [];
+
 % priors = priors ./ sum(priors);
 priors = ones(size(Fo,3),1);
 priors = priors ./ sum(priors);
 
 
-%%
-num_bins = 100;
+%% Estimate initial focal length and distribution
+% f = [];
+% for i = 1:size(Fo,3)
+%     f0 = getInitialEstimateOfFocalLength(Fo(:,:,i), width, height);
+%     f = [f; f0 .* priors(i) / size(f0,1)];
+% end
+% 
+% % % Filter focal lengths not in the peak bin
+% h = histogram(f, 50);
+% [~, whichbin] = max(h.Values);
+% th_low = h.BinEdges(whichbin);
+% th_high = h.BinEdges(whichbin + 1);
+% 
+% f_pct = f;
+% f_pct(or(f < th_low, f > th_high)) = [];
+% 
+% f0 = sum(f_pct) * size(f,1) / size(f_pct,1);
+% fprintf("f0: %f\n", f0)
 
+
+%% Estimate initial focal length and distribution
 f = [];
 for i = 1:size(Fo,3)
     f0 = getInitialEstimateOfFocalLength(Fo(:,:,i), width, height);
@@ -134,13 +155,21 @@ for i = 1:size(Fo,3)
 end
 
 % % Filter focal lengths not in the peak bin
-h = histogram(f, num_bins);
+h = histogram(f, 50);
 [~, whichbin] = max(h.Values);
 th_low = h.BinEdges(whichbin);
 th_high = h.BinEdges(whichbin + 1);
-f(or(f < th_low, f > th_high)) = [];
-f0 = median(f);
+
+f_pct = f;
+f_pct(or(f < th_low, f > th_high)) = [];
+
+f0 = median(f_pct);
 fprintf("f0: %f\n", f0)
+
+
+%%
+weights = ones(size(Fo,3),1);
+weights = weights ./ sum(weights);
 
 fxs = [];
 fys = [];
@@ -149,9 +178,9 @@ min_residual = inf;
 fx = inf;
 fy = inf;
 
-for i = 1:1000
-    % fprintf("%d\n", i);
-    [fx_sample, fy_sample, residual] = evaluate(Fo, priors, f0, width, height);
+for i = 1:500
+    fprintf("%d\n", i);
+    [fx_sample, fy_sample, residual] = evaluate(Fo, weights, f0, width, height);
     fxs = [fxs; fx_sample];
     fys = [fys; fy_sample];
 
@@ -205,7 +234,7 @@ Options = optimoptions('lsqnonlin','Display','off', ...
     'Algorithm','levenberg-marquardt',...
     'StepTolerance',1e-20,...
     'FunctionTolerance',1e-20,...
-    'MaxIterations',1e6,...
+    'MaxIterations',1e2,...
     'MaxFunctionEvaluations',1e6,...
     'TolFun', 1e-20,...
     'TolX',1e-20);
@@ -213,8 +242,11 @@ Options = optimoptions('lsqnonlin','Display','off', ...
 X0 = [K0(1,1) K0(2,2)];
 
 sample = datasample(1:size(Fs,3),3,'Replace',false,'Weights',weights);
+subset = Fs(:,:,sample);
 
-K_SK = lsqnonlin(@(X) costFunctionMendoncaCipolla(Fs(:,:,sample), X, '2'), X0, [], [], Options);
+loss = @(X) costFunctionMendoncaCipollaFocalOnly(subset, X, width/2, height/2, '2');
+
+K_SK = lsqnonlin(loss, X0, [], [], Options);
 K_SK = [K_SK(1) 0 width/2; 0 K_SK(2) height/2; 0 0 1];
 
 fx = K_SK(1,1);
