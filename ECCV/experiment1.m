@@ -11,8 +11,8 @@ load('Dataset/params.mat')
 % Fx = [num_cameras, SB, MB]
 % Fy = [num_cameras, SB, MB]
 
-sample_size = 10;
-num_trials = 500;
+sample_size = 1;
+num_trials = 100;
 
 width = 4272;
 height = 2848;
@@ -67,7 +67,7 @@ for num_cameras = 3:3
 end
 
 
-%%
+3,%%
 figure
 title("FX")
 hold on
@@ -89,7 +89,7 @@ hold off
 function [fx, fy] = selfCalibrate(useMultibody, cameras, Fs, pointMatchesInliers1, pointMatchesInliers2, width, height, numTrials)
 
 num_cameras = size(cameras,2);
-p = 0.5;
+p = 0;
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Load fundamental matrices and priors
@@ -119,6 +119,8 @@ for a = 1:num_cameras-1
         if useMultibody
             Fo(:,:,size(Fo,3)+1) = Fs(:,:,i,j,o2) / norm(Fs(:,:,i,j,o2));
             priors = [priors; matches2(i,j)];
+            Fo(:,:,size(Fo,3)+1) = Fs(:,:,i,j,3) / norm(Fs(:,:,i,j,3));
+            % priors = [priors; pointMatchesInliers3(i,j)];
         end
     end
 end
@@ -148,7 +150,13 @@ f_pct = f;
 f_pct(or(f < th_low, f > th_high)) = [];
 
 f0 = median(f_pct);
-% fprintf("f0: %f\n", f0)
+
+% Kernel voting
+[x,xi] = ksdensity(f,'Bandwidth',f0*0.01,'Kernel','epanechnikov');
+[~,I] = max(x);
+f0 = xi(I);
+
+fprintf("f0: %f\n", f0)
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -167,7 +175,7 @@ for i = 1:numTrials
     Fy = [Fy; fy_sample];
 end
 
-h = histogram(Fx,calcnbins(Fx,'fd'));
+h = histogram(Fx,min(500, calcnbins(Fx,'fd')));
 [~, whichbin] = max(h.Values);
 th_low = h.BinEdges(whichbin);
 th_high = h.BinEdges(whichbin + 1);
@@ -176,7 +184,7 @@ fx(or(fx < th_low, fx > th_high)) = [];
 fx = median(fx);
 
 figure;
-h = histogram(Fy,calcnbins(Fy,'fd'));
+h = histogram(Fy,min(500, calcnbins(Fy,'fd')));
 [~, whichbin] = max(h.Values);
 th_low = h.BinEdges(whichbin);
 th_high = h.BinEdges(whichbin + 1);
@@ -192,7 +200,6 @@ function [fx,fy] = optimizeParams(Fs, weights, f0, width, height)
 K0 = [f0, 0, width / 2; 0, f0, height / 2; 0, 0, 1];
 
 Options = optimoptions('lsqnonlin','Display','off', ...
-    'Algorithm','levenberg-marquardt',...
     'StepTolerance',1e-20,...
     'FunctionTolerance',1e-20,...
     'MaxIterations',1e2,...

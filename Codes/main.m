@@ -65,7 +65,7 @@ disp(K_SK)
 X0 = [A(1,:) A(2,:) A(3,:)];
 
 % Compute Normal to Plane at Infinity
-Normal = NormaltoPlaneAtInfinity(PPM, A);
+Normal = NormaltoPlaneAtInfinity(PPM(:,:,5), A);
 
 % Compute Homography of Plane at Infinity
 H = homographyPlaneAtInfinity(Fs, Normal);

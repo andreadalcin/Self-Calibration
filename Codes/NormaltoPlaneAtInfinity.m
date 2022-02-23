@@ -26,7 +26,7 @@ N = [X; Y; Z];
 Q = [W_inv, (W_inv * N); (N' * W_inv), (N' * W_inv * N)]; 
 
 % Select Any One Projection Matrix
-M = P(:, :, 5);
+M = P;
 
 % DAQ AutoCalibration Equation
 Calib = M * Q * M';

@@ -10,7 +10,7 @@ load('Synthetic/Data/sturm.mat', 'opening_angles')
 
 fs = [];
 
-for i = 1:size(opening_angles,2)     
+for i = 1:size(opening_angles,2)
     f0 = max(width, height) / 2 / tan(deg2rad(opening_angles(i) / 2));
     fs = [fs; getInitialEstimateFromF0(F, f0, width, height)];
 end
