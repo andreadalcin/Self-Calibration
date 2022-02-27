@@ -1,4 +1,4 @@
-function E = costFunctionMendoncaCipolla(F, X, Method)
+function E = costFunctionMendoncaCipollaPrincipalPointsOnly(F, X, fx, fy, Method)
 %% COSTFUNCTIONMENDONCACIPOLLA computes Mendonca & Cipolla Cost function to find the Optimal Intrinsic Parameters
 
 %   Input
@@ -11,7 +11,7 @@ function E = costFunctionMendoncaCipolla(F, X, Method)
 
 %% Function starts here
 % Transform Intrinsics to Matrix Form
-K = [X(1) 0 X(3); 0 X(2) X(4); 0 0 1];
+K = [fx 0 X(1); 0 fy X(2); 0 0 1];
 
 % Initialize Cost
 E = [];

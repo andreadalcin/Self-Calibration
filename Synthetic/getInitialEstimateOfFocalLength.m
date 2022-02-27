@@ -15,6 +15,7 @@ for i = 1:size(opening_angles,2)
     fs = [fs; getInitialEstimateFromF0(F, f0, width, height)];
 end
 
+% f0 = 10^3;
 % f0 = 2 * (width + height);
 % fs = getInitialEstimateFromF0(F, f0, width, height);
 

@@ -7,7 +7,7 @@ addpath('ECCV/')
 
 
 %%
-load("ECCV/Data/Seq005_Clip02_Tracks.mat")
+load("ECCV/Data/Seq113_Clip01_Tracks.mat")
 
 num_objects = max(unique(Data.GtLabel));
 num_cameras = size(Data.ySparse,3);
