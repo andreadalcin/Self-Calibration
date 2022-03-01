@@ -1,4 +1,4 @@
-function [mu_f0, sigma_f0] = sturm2(Fs, width, height)
+function [mu_f0, sigma_f0, x, ySix] = sturm2(Fs, width, height)
 
 f = [];
 for i = 1:size(Fs,3)
@@ -6,36 +6,21 @@ for i = 1:size(Fs,3)
     f = [f; f0];
 end
 
-bandwidth = median(f) * 0.05;
+% Filter out focal lengths outside the (1e+02, 5e+05) range
+f(f < 1e+02 | f > 5e+05) = [];
 
-figure
+% Compute the KDE
+bandwidth = median(f) * 0.05;
 pdSix = fitdist(f,'Kernel','Width',bandwidth);
+
 x = min(f):.1:max(f);
 ySix = pdf(pdSix,x);
-plot(x,ySix,'k-','LineWidth',2)
 
+% Mean is the peak of the distribution
 [~,I] = max(ySix);
 mu_f0 = x(I);
-sigma_f0 = mad(f);
 
-
-% % Filter focal lengths not in the peak bin
-% h = histogram(f, calcnbins(f,'sturges'));
-% [~, whichbin] = max(h.Values);
-% th_low = h.BinEdges(whichbin);
-% th_high = h.BinEdges(whichbin + 1);
-% 
-% f_pct = f;
-% f_pct(or(f < th_low, f > th_high)) = [];
-% 
-% mu_f0 = median(f_pct);
-% sigma_f0 = sqrt(robustcov(f)) / 2;
-
-% Kernel voting
-% b = f0*0.02;
-% [x,xi] = ksdensity(f,'Bandwidth',b,'Kernel','normal');
-% [~,I] = max(x);
-% mu_f0 = xi(I);
-% sigma_f0 = mad(f);
+% Standard deviation with the Q_n estimator
+sigma_f0 = robstd(f, 'Q');
 
 end

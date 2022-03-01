@@ -18,7 +18,7 @@ ySix = pdf(pdSix,x);
 
 [~,I] = max(ySix);
 mu_f0 = x(I);
-sigma_f0 = mad(f);
+sigma_f0 = robstd(f, 'Q');
 
 % h = histogram(f, calcnbins(f,'sturges'));
 % [~, whichbin] = max(h.Values);
