@@ -5,7 +5,7 @@ addpath('Synthetic/')
 addpath('Synthetic/prior/')
 addpath('ECCV/')
 
-load('Dataset/07_amiibo_motion-tlinkage.mat')
+load('Dataset/optimization/Seq005_Clip01.mat')
 load('Dataset/params.mat')
 
 % Load parameters
@@ -17,12 +17,12 @@ width = cameraParams.ImageSize(2);
 height = cameraParams.ImageSize(1);
 matches = [];
 
-kNN_support = 2;
+kNN_support = 10;
 num_cameras = size(Fs,3);
 
 % Experiments
-sample_size = 20;
-num_trials = 2000;
+sample_size = 1;
+num_trials = 5000;
 
 Fx = []; % Fx = [num_cameras, SB, MB]
 Fy = []; % Fy = [num_cameras, SB, MB]
@@ -32,7 +32,7 @@ for num = num_cameras:num_cameras
     Fy_sb = [];
     U_sb = [];
     V_sb = [];
-    
+
     Fx_mb = [];
     Fy_mb = [];
     U_mb = [];
@@ -42,38 +42,36 @@ for num = num_cameras:num_cameras
         cameras = sort(datasample(1:size(Fs,3), num, 'Replace', false))
 
         [fx, fy, u, v] = selfCalibrate(false, cameras, Fs, ...,
-            width, height, num_trials, kNN_support);
+            width, height, num_trials, kNN_support, [], []);
         Fx_sb = [Fx_sb; fx];
         Fy_sb = [Fy_sb; fy];
         U_sb = [U_sb; u];
         V_sb = [V_sb; v];
-        close all
 
         [fx, fy, u, v] = selfCalibrate(true, cameras, Fs, ...
-            width, height, num_trials, kNN_support);
+            width, height, num_trials, kNN_support, [], pointMatchesInliers2);
         Fx_mb = [Fx_mb; fx];
         Fy_mb = [Fy_mb; fy];
         U_mb = [U_mb; u];
         V_mb = [V_mb; v];
-        close all
     end
 
     % Single body
-    fx = median(Fx_sb)
-    fy = median(Fy_sb)
-    u = median(U_sb)
-    v = median(V_sb)
+    fx = median(Fx_sb);
+    fy = median(Fy_sb);
+    u = median(U_sb);
+    v = median(V_sb);
     err_f_sb = 0.5 * 100 * (abs((fx - fx_gt)/fx_gt) + abs((fy - fy_gt)/fy_gt));
     err_pp_sb = 0.5 * 100 * (abs((u - u_gt)/u_gt) + abs((v - v_gt)/v_gt));
 
     % Multi body
-    fx = median(Fx_mb)
-    fy = median(Fy_mb)
-    u = median(U_mb)
-    v = median(V_mb)
+    fx = median(Fx_mb);
+    fy = median(Fy_mb);
+    u = median(U_mb);
+    v = median(V_mb);
     err_f_mb = 0.5 * 100 * (abs((fx - fx_gt)/fx_gt) + abs((fy - fy_gt)/fy_gt));
     err_pp_mb = 0.5 * 100 * (abs((u - u_gt)/u_gt) + abs((v - v_gt)/v_gt));
-    
+
     disp("df - SB")
     disp(err_f_sb)
     disp("df - MB")
@@ -113,38 +111,38 @@ plot(Fy(:,1), Fy(:,5), 'b');
 hold off
 
 
-function [fx, fy, u, v] = selfCalibrate(useMultibody, cameras, Fs, width, height, numTrials, knnSupport)
+function [fx, fy, u, v] = selfCalibrate(useMultibody, cameras, Fs, ...
+    width, height, numTrials, knnSupport, matches_1, matches_2)
 
 num_cameras = size(cameras,2);
-p = 1;
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Load fundamental matrices and priors
-Fo = [];
-for a = 1:num_cameras-1
-    for b = a+1:num_cameras
-        i = cameras(a);
-        j = cameras(b);
-
-        if rand > p
-            o1 = 1;
-            o2 = 2;
-        else
-            o1 = 2;
-            o2 = 1;
-        end
-
-        Fo(:,:,size(Fo,3)+1) = Fs(:,:,i,j,o1) / norm(Fs(:,:,i,j,o1));
-        if useMultibody
-            Fo(:,:,size(Fo,3)+1) = Fs(:,:,i,j,o2) / norm(Fs(:,:,i,j,o2));
-            Fo(:,:,size(Fo,3)+1) = Fs(:,:,i,j,3) / norm(Fs(:,:,i,j,3));
-        end
-    end
-end
-Fo(:,:,1) = [];
+% Fo = [];
+% priors = [];
+% for a = 1:num_cameras-1
+%     for b = a+1:num_cameras
+%         i = cameras(a);
+%         j = cameras(b);
+% 
+%         if Fs(:,:,i,j,1) ~= zeros(3,3)
+%             Fo(:,:,size(Fo,3)+1) = Fs(:,:,i,j,2) / norm(Fs(:,:,i,j,2));
+%             priors = [priors; matches_1(i,j)];
+%             
+%         end
+% 
+%         if useMultibody
+%             if Fs(:,:,i,j,2) ~= zeros(3,3)
+%                 Fo(:,:,size(Fo,3)+1) = Fs(:,:,i,j,1) / norm(Fs(:,:,i,j,1));
+%                 priors = [priors; matches_2(i,j)];
+%             end
+%         end
+%     end
+% end
+% Fo(:,:,1) = [];
 
 % priors = priors ./ sum(priors);
-priors = ones(size(Fo,3),1);
+% priors = ones(size(Fo,3),1);
 priors = priors ./ sum(priors);
 
 
@@ -164,13 +162,24 @@ Fx = [];
 Fy = [];
 views = [];
 
+% residuals = zeros(numTrials,1);
+% K_residual = zeros(3,3,numTrials);
+
 parfor i = 1:numTrials
-    % fprintf("%d\n", i);
     [fx, fy, v] = optimizeFocalLength(Fo, weights, mu_f0, sigma_f0 * 0.1, width, height);
     Fx(i) = fx;
     Fy(i) = fy;
     views(i,:) = v;
+
+    % K_residual(:,:,i) = [fx, 0, width/2; 0 fy height/2; 0 0 1];
+    % residuals(i) = sum(costFunctionMendoncaCipollaResidual(Fo, K_residual(:,:,i), priors, '2'));
 end
+
+% [~,I] = min(residuals);
+% K_residual = K_residual(:,:,I);
+% 
+% fx = K_residual(1,1)
+% fy = K_residual(2,2)
 
 fx = kernel_voting(Fx', 0.05);
 fy = kernel_voting(Fy', 0.05);
@@ -185,13 +194,6 @@ v = ii(histc(kk,1:numel(ii)) > knnSupport);
 % Refinement with KNN
 [fx, fy, u, v] = optimizePrincipalPoints(Fo(:,:,v), fx, fy, width, height);
 
-% [fx, fy, ~] = optimizePrincipalPoints(Fo(:,:,v), fx, fy, width, height);
-
-% Joint refinement - focal length + principal point
-% u = width / 2;
-% v = height / 2;
-% [~,~,u,v] = optimizePrincipalPoints(Fo(:,:,v), fx, fy, width, height);
-
 end
 
 
@@ -203,6 +205,8 @@ x = min(f):.1:max(f);
 ySix = pdf(pdSix,x);
 [~,I] = max(ySix);
 f = x(I);
+figure
+plot(x,ySix)
 end
 
 

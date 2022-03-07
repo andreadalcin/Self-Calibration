@@ -1,4 +1,4 @@
-function E = costFunctionMendoncaCipollaWeighted(F, X, W, Method)
+function E = costFunctionMendoncaCipollaResidual(F, K, W, Method)
 %% COSTFUNCTIONMENDONCACIPOLLA computes Mendonca & Cipolla Cost function to find the Optimal Intrinsic Parameters
 
 %   Input
@@ -10,8 +10,6 @@ function E = costFunctionMendoncaCipollaWeighted(F, X, W, Method)
 %       E    - Computed Cost
 
 %% Function starts here
-% Transform Intrinsics to Matrix Form
-K = [X(1) 0 X(3); 0 X(2) X(4); 0 0 1];
 
 % Initialize Cost
 E = [];
@@ -20,7 +18,6 @@ E = [];
 % N = size(F,3);
 
 % Den = N*(N-1)/2; % For N Images we can find N(N-1)/2 Fundamental Matrix
-Den = sum(W);
 
 % Compute the Cost using Mendonca & Cipolla's Equation
 for i = 1:size(F,3)
@@ -39,15 +36,17 @@ for i = 1:size(F,3)
     switch Method
         case '1'
             % Use the  Mendonca & Cipolla's Equation-1
-            E1 = W(i)/Den * (r - s)/s;
+            E1 = 1 * (r - s)/s;
 
         case '2'
             % Use the  Mendonca & Cipolla's Equation-2
-            E1 = W(i)/Den * (r - s)/(r + s);
+            E1 = 1 * (r - s)/(r + s);
     end
 
     % Append Computed Cost
     E = [E E1];
 end
+
+E = E .* W';
 
 end

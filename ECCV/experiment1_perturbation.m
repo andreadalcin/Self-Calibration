@@ -5,7 +5,7 @@ addpath('Synthetic/')
 addpath('Synthetic/prior/')
 addpath('ECCV/')
 
-load('Dataset/07_amiibo_motion-tlinkage.mat')
+load('Dataset/Sturm/fountain.mat')
 load('Dataset/params.mat')
 
 % Load parameters
@@ -17,11 +17,11 @@ width = cameraParams.ImageSize(2);
 height = cameraParams.ImageSize(1);
 matches = [];
 
-kNN_support = 2;
+kNN_support = 10;
 num_cameras = size(Fs,3);
 
 % Experiments
-sample_size = 20;
+sample_size = 1;
 num_trials = 2000;
 
 Fx = []; % Fx = [num_cameras, SB, MB]
@@ -116,7 +116,7 @@ hold off
 function [fx, fy, u, v] = selfCalibrate(useMultibody, cameras, Fs, width, height, numTrials, knnSupport)
 
 num_cameras = size(cameras,2);
-p = 1;
+p = 0;
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Load fundamental matrices and priors
@@ -134,10 +134,17 @@ for a = 1:num_cameras-1
             o2 = 1;
         end
 
-        Fo(:,:,size(Fo,3)+1) = Fs(:,:,i,j,o1) / norm(Fs(:,:,i,j,o1));
+        if Fs(:,:,i,j,o1) ~= zeros(3,3)
+            Fo(:,:,size(Fo,3)+1) = Fs(:,:,i,j,o1) / norm(Fs(:,:,i,j,o1),2);
+        end
+        
         if useMultibody
-            Fo(:,:,size(Fo,3)+1) = Fs(:,:,i,j,o2) / norm(Fs(:,:,i,j,o2));
-            Fo(:,:,size(Fo,3)+1) = Fs(:,:,i,j,3) / norm(Fs(:,:,i,j,3));
+            if Fs(:,:,i,j,o2) ~= zeros(3,3)
+                Fo(:,:,size(Fo,3)+1) = Fs(:,:,i,j,o2) / norm(Fs(:,:,i,j,o2),2);
+            end
+%             if Fs(:,:,i,j,3) ~= zeros(3,3)
+%                 Fo(:,:,size(Fo,3)+1) = Fs(:,:,i,j,3) / norm(Fs(:,:,i,j,3));
+%             end
         end
     end
 end
@@ -157,40 +164,35 @@ fprintf("mu_f0: %f, sigma_f0: %f\n", mu_f0, sigma_f0)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Optimization
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-weights = ones(size(Fo,3),1);
-weights = weights ./ sum(weights);
+ED = zeros(size(Fo,3),1);
+W = ones(size(Fo,3),1);
 
-Fx = [];
-Fy = [];
-views = [];
+iter = 0;
+K_prev = [mu_f0, 0, width / 2; 0, mu_f0, height / 2; 0, 0, 1];
 
-parfor i = 1:numTrials
-    % fprintf("%d\n", i);
-    [fx, fy, v] = optimizeFocalLength(Fo, weights, mu_f0, sigma_f0 * 0.1, width, height);
-    Fx(i) = fx;
-    Fy(i) = fy;
-    views(i,:) = v;
+while iter < 100
+    K_curr = optimize_ls(Fo, W, K_prev);
+    dK = K_curr - K_prev;
+    if dK == zeros(3,3)
+        break;
+    end
+    K_prev = K_curr;
+
+    for i = 1:size(Fo,3)
+        dE = compute_dE(dK, Fo(:,:,i), K_curr);
+        ED(i) = compute_ED(dE, Fo(:,:,i), K_curr);
+    end
+
+    sj = robstd(ED);
+    W = exp(-ED ./ sj);
+
+    iter = iter + 1;
 end
 
-fx = kernel_voting(Fx', 0.05);
-fy = kernel_voting(Fy', 0.05);
-
-% Find k-NN
-kNN = numTrials * 0.01;
-I = knnsearch([Fx' Fy'], [fx fy], 'K', kNN);
-v = views(I,:);
-[ii,~,kk] = unique(v(:));
-v = ii(histc(kk,1:numel(ii)) > knnSupport);
-
-% Refinement with KNN
-[fx, fy, u, v] = optimizePrincipalPoints(Fo(:,:,v), fx, fy, width, height);
-
-% [fx, fy, ~] = optimizePrincipalPoints(Fo(:,:,v), fx, fy, width, height);
-
-% Joint refinement - focal length + principal point
-% u = width / 2;
-% v = height / 2;
-% [~,~,u,v] = optimizePrincipalPoints(Fo(:,:,v), fx, fy, width, height);
+fx = K_curr(1,1);
+fy = K_curr(2,2);
+u = K_curr(1,3);
+v = K_curr(2,3);
 
 end
 
@@ -206,57 +208,7 @@ f = x(I);
 end
 
 
-function [fx,fy,views] = optimizeFocalLength(Fs, weights, mu_f0, sigma_f0, width, height)
-
-% Randomize focal length and principal point
-f0 = 0;
-u0 = 0;
-v0 = 0;
-
-while (f0 <= 0)
-    f0 = normrnd(mu_f0, sigma_f0);
-end
-while (u0 <= 0)
-    u0 = normrnd(width / 2, width / 6);
-end
-while (v0 <= 0)
-    v0 = normrnd(height / 2, height / 6);
-end
-
-K0 = [f0, 0, u0; 0, f0, v0; 0, 0, 1];
-
-% Optimization
-Options = optimoptions('lsqnonlin','Display','off', ...
-    'Algorithm','levenberg-marquardt', ...
-    'StepTolerance',1e-20,...
-    'FunctionTolerance',1e-20,...
-    'MaxIterations',1e2,...
-    'MaxFunctionEvaluations',1e6,...
-    'TolFun', 1e-20,...
-    'TolX',1e-20);
-
-% Randomize focal length
-X0 = [K0(1,1) K0(2,2)];
-
-views = datasample(1:size(Fs,3),3,'Replace',false,'Weights',weights);
-subset = Fs(:,:,views);
-
-loss = @(X) costFunctionMendoncaCipollaFocalOnly(subset, X, u0, v0, '2');
-
-K_SK = lsqnonlin(loss, X0, [], [], Options);
-K_SK = [K_SK(1) 0 width/2; 0 K_SK(2) height/2; 0 0 1];
-
-fx = K_SK(1,1);
-fy = K_SK(2,2);
-
-end
-
-
-function [fx,fy,u,v] = optimizePrincipalPoints(Fs, fx, fy, width, height)
-
-u0 = width / 2;
-v0 = height / 2;
-K0 = [fx, 0, u0; 0, fy, v0; 0, 0, 1];
+function K_SK = optimize_ls(Fs, W, K_curr)
 
 % Optimization
 Options = optimoptions('lsqnonlin','Display','off', ...
@@ -269,18 +221,23 @@ Options = optimoptions('lsqnonlin','Display','off', ...
     'TolX',1e-20);
 
 % Randomize focal length
-X0 = [K0(1,1) K0(2,2) K0(1,3), K0(2,3)];
+X0 = [K_curr(1,1) K_curr(2,2), K_curr(1,3), K_curr(2,3)];
 
-loss = @(X) costFunctionMendoncaCipolla(Fs, X, '2');
+loss = @(X) costFunctionMendoncaCipollaWeighted(Fs, X, W, '2');
 
 K_SK = lsqnonlin(loss, X0, [], [], Options);
 K_SK = [K_SK(1) 0 K_SK(3); 0 K_SK(2) K_SK(4); 0 0 1];
+end
 
-fx = K_SK(1,1);
-fy = K_SK(2,2);
-u = K_SK(1,3);
-v = K_SK(2,3);
 
+function dE = compute_dE(dK, F, K)
+dE = dK'*F*K + K*F*dK' + dK'*F*dK;
+end
+
+function ED = compute_ED(dE, F, K)
+EM = K' * F * K;
+[~,D,~] = svd(EM);
+ED = ((D(1,1) - D(2,2)) / (2 * norm(dE, 2)));
 end
 
 function [Fo, weights] = pre_process(Fs)

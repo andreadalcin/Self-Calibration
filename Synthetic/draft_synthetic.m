@@ -24,7 +24,7 @@ outlier_ratio = 0;
 
 %% Step 1 - Sample fundamental matrices
 num_cams = 10;
-sigma = 1e2;
+sigma = 0;
 outlier_indices = [];
 
 index = 1;
@@ -115,10 +115,13 @@ size(Fs_no_outliers,3)
 
 X0 = [K0(1,:) K0(2,2:3)];
 
-Options = optimoptions('lsqnonlin','Display','off','Algorithm','levenberg-marquardt','TolFun', 1e-20,'TolX',1e-20,'MaxFunctionEvaluations',1e6);
+Options = optimoptions('lsqnonlin','Display','off',...
+    'Algorithm','levenberg-marquardt',...
+    'TolFun', 1e-20,'TolX',1e-20,...
+    'MaxFunctionEvaluations',1e6);
 
 % Compute Intrinsics by Optimization
-K_SK = lsqnonlin(@(X) costFunctionMendoncaCipolla(Fs_no_outliers, X, '2'), X0, [], [], Options);
+K_SK = lsqnonlin(@(X) costFunctionMendoncaCipollaVanilla(Fs_no_outliers, X, '2'), X0, [], [], Options);
 
 % Intrinsics in Matrix Form
 K_SK = [K_SK(1) K_SK(2) K_SK(3); 0 K_SK(4) K_SK(5); 0 0 1];

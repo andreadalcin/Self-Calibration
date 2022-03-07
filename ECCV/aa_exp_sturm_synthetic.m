@@ -1,7 +1,7 @@
 clc, clear, close all
 format longG;
 
-% rng default;
+rng default;
 
 addpath('Synthetic/')
 addpath('Synthetic/prior/')
@@ -15,10 +15,10 @@ K = [f_gt 0 width / 2; 0 f_gt height / 2; 0 0 1];
 
 % num_F = 15;
 % num_F = 25;
-% num_F = 50;
-num_F = 75;
+num_F = 50;
+% num_F = 75;
 
-% outlier_ratio = 0;
+outlier_ratio = 0;
 xaxis_limit = true;
 
 % Sample fundamental matrices
@@ -27,7 +27,7 @@ sigma = 5;
 outlier_indices = [];
 
 for i = 1:num_F
-    if (rand > 0)
+    if (rand > outlier_ratio)
         K_curr = K;
     else
         a = 1e1;
@@ -54,18 +54,22 @@ sigma_f0
 
 % Plot KDE
 figure('Name', 'Sturm plot results', 'NumberTitle', 'off');
-title(sprintf('Robust initialization - Synthetic test - %d fundamental matrices', num_f))
+% title(sprintf('Rob. Initialization - Synthetic - %d fundamental matrices', num_f), 'FontSize', 20)
 hold on
-h = plot((x - f_gt) / f_gt, ySix ./ max(ySix),'k-','LineWidth',2);
+h = plot((x - f_gt) / f_gt, ySix ./ max(ySix),'k-','LineWidth',3);
 set(h,'LineSmoothing','On')
-xlabel('Relative Error (%)');
-ylabel('Density');
+set(gca,'FontSize',26);
+xlabel('Relative Error (%)', 'FontSize', 32);
+ylabel('Density', 'FontSize', 32);
+xticks([-1, 0, 1]);
+yticks([]);
 if xaxis_limit
     xlim([-1 1])
 end
-xline((mu_1_1 - f_gt) / f_gt,'r-','LineWidth',3);
-xline((mu_1 - f_gt) / f_gt,'g-','LineWidth',3);
-xline((mu_f0 - f_gt) / f_gt,'b-','LineWidth',3);
+xline((mu_1_1 - f_gt) / f_gt,'r-','LineWidth',5);
+xline((mu_1 - f_gt) / f_gt,'g-','LineWidth',5);
+xline((mu_f0 - f_gt) / f_gt,'b-','LineWidth',5);
+xline(0,'k--','LineWidth',2)
 hold off
 
 end

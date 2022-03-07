@@ -7,7 +7,7 @@ addpath('ECCV/')
 
 
 %%
-load("ECCV/Data/Seq113_Clip01_Tracks.mat")
+load("ECCV/Data/Seq005_Clip01_Tracks.mat")
 
 num_objects = max(unique(Data.GtLabel));
 num_cameras = size(Data.ySparse,3);
@@ -19,10 +19,10 @@ do = [];
 K = [9.842439e+02 0.000000e+00 6.900000e+02; 0.000000e+00 9.808141e+02 2.331966e+02; 0.000000e+00 0.000000e+00 1.000000e+00];
 
 for i = 1:num_cameras-1
-    for j = i+1:num_cameras
+    for j = i+5:min(i+10,num_cameras)
         vis_mask = Data.visibleSparse(:,i) & Data.visibleSparse(:,j);
 
-        for o = 1:1
+        for o = 1:2
             obj_mask = Data.GtLabel == o;
 
             file1 = sprintf("ECCV/Sequences/Seq038_Clip02/0000%02d.png", i);
