@@ -5,16 +5,45 @@ addpath('Synthetic/')
 addpath('Synthetic/prior/')
 addpath('ECCV/')
 
-load('Dataset/optimization/Seq005_Clip01.mat')
+dataset = "fountain";
+% dataset = "herzjesu";
+% dataset = "castle";
+% dataset = "01_amiibo_static";
+% dataset = "02_amiibo_motion";
+% dataset = "04_amiibo_motion";
+% dataset = "06_amiibo_static";
+% dataset = "10_amiibo_motion";
+% dataset = "12_amiibo_motion";
+% dataset = "KITTI_Seq005";
+% dataset = "KITTI_Seq113";
+
+switch dataset
+    case "fountain"
+        load('Dataset/Sturm/fountain.mat')
+        width = 3072;
+        height = 2048;
+        fx_gt = 2759.48;
+        fy_gt = 2764.16;
+        u_gt = 1520.69;
+        v_gt = 1006.81;
+        Fs = pre_process(Fs);
+    case "01_amiibo_static"
+        load('Dataset/Sturm/01_amiibo_static.mat')
+        width = cameraParams.ImageSize(2);
+        height = cameraParams.ImageSize(1);
+        fx_gt = cameraParams.Intrinsics.FocalLength(1);
+        fy_gt = cameraParams.Intrinsics.FocalLength(2);
+        u_gt = cameraParams.Intrinsics.PrincipalPoint(1);
+        v_gt = cameraParams.Intrinsics.PrincipalPoint(2);
+        Fs = pre_process(Fs);
+end
+
+
+load('Dataset/optimization/10_amiibo_motion.mat')
 load('Dataset/params.mat')
 
 % Load parameters
-fx_gt = cameraParams.Intrinsics.FocalLength(1);
-fy_gt = cameraParams.Intrinsics.FocalLength(2);
-u_gt = cameraParams.Intrinsics.PrincipalPoint(1);
-v_gt = cameraParams.Intrinsics.PrincipalPoint(2);
-width = cameraParams.ImageSize(2);
-height = cameraParams.ImageSize(1);
+
 matches = [];
 
 kNN_support = 10;
@@ -49,7 +78,7 @@ for num = num_cameras:num_cameras
         V_sb = [V_sb; v];
 
         [fx, fy, u, v] = selfCalibrate(true, cameras, Fs, ...
-            width, height, num_trials, kNN_support, [], pointMatchesInliers2);
+            width, height, num_trials, kNN_support, [], []);
         Fx_mb = [Fx_mb; fx];
         Fy_mb = [Fy_mb; fy];
         U_mb = [U_mb; u];
@@ -118,31 +147,28 @@ num_cameras = size(cameras,2);
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Load fundamental matrices and priors
-% Fo = [];
-% priors = [];
-% for a = 1:num_cameras-1
-%     for b = a+1:num_cameras
-%         i = cameras(a);
-%         j = cameras(b);
-% 
-%         if Fs(:,:,i,j,1) ~= zeros(3,3)
-%             Fo(:,:,size(Fo,3)+1) = Fs(:,:,i,j,2) / norm(Fs(:,:,i,j,2));
-%             priors = [priors; matches_1(i,j)];
-%             
-%         end
-% 
-%         if useMultibody
-%             if Fs(:,:,i,j,2) ~= zeros(3,3)
-%                 Fo(:,:,size(Fo,3)+1) = Fs(:,:,i,j,1) / norm(Fs(:,:,i,j,1));
-%                 priors = [priors; matches_2(i,j)];
-%             end
-%         end
-%     end
-% end
-% Fo(:,:,1) = [];
+Fo = [];
+priors = [];
+for a = 1:num_cameras-1
+    for b = a+1:num_cameras
+        i = cameras(a);
+        j = cameras(b);
+
+        if Fs(:,:,i,j,1) ~= zeros(3,3)
+            Fo(:,:,size(Fo,3)+1) = Fs(:,:,i,j,1) / norm(Fs(:,:,i,j,1));
+        end
+
+        if useMultibody
+            if Fs(:,:,i,j,2) ~= zeros(3,3)
+                Fo(:,:,size(Fo,3)+1) = Fs(:,:,i,j,2) / norm(Fs(:,:,i,j,2));
+            end
+        end
+    end
+end
+Fo(:,:,1) = [];
 
 % priors = priors ./ sum(priors);
-% priors = ones(size(Fo,3),1);
+priors = ones(size(Fo,3),1);
 priors = priors ./ sum(priors);
 
 
@@ -177,7 +203,7 @@ end
 
 % [~,I] = min(residuals);
 % K_residual = K_residual(:,:,I);
-% 
+%
 % fx = K_residual(1,1)
 % fy = K_residual(2,2)
 

@@ -43,23 +43,25 @@ median(V)
 function [fx, fy, u, v] = run_test(K, width, height, motions, ...
     num_cams, sigma, min_outlier_f, max_outlier_f, outlier_ratio)
 
-% Sample fundamental matrices
-Fs = [];
-for i = 1:num_cams-1
-    for j = i+1:num_cams
-        for k = 1:motions
-            if (rand > outlier_ratio)
-                K_curr = K;
-            else
-                r = (max_outlier_f - min_outlier_f) .* rand(1) + min_outlier_f;
-                K_curr = [r 0 width / 2; 0 r height / 2; 0 0 1];
-            end
+load('Dataset/synthetic/test-7-3.mat')
 
-            Fs(:,:,size(Fs,3) + 1) = sampleFundamental(K_curr, sigma);
-        end
-    end
-end
-Fs(:,:,1) = [];
+% Sample fundamental matrices
+% Fs = [];
+% for i = 1:num_cams-1
+%     for j = i+1:num_cams
+%         for k = 1:motions
+%             if (rand > outlier_ratio)
+%                 K_curr = K;
+%             else
+%                 r = (max_outlier_f - min_outlier_f) .* rand(1) + min_outlier_f;
+%                 K_curr = [r 0 width / 2; 0 r height / 2; 0 0 1];
+%             end
+% 
+%             Fs(:,:,size(Fs,3) + 1) = sampleFundamental(K_curr, sigma);
+%         end
+%     end
+% end
+% Fs(:,:,1) = [];
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Estimate the initial focal length

@@ -1,5 +1,5 @@
 clc, clear, close all
-format longG;
+format long;
 
 rng default;
 
